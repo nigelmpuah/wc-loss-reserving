@@ -45,8 +45,8 @@ See the report for the full discussion.
 
 ## Running it
 
-The data is **not** included in this repo (the CAS database has its own usage
-terms). Download it first:
+The data is **not** included in this repository as the CAS database has its own usage
+terms. To replicate results:
 
 1. Get the workers' comp file `wkcomp_pos_98-07.csv` from the
    [CAS Loss Reserve Database](https://www.casact.org/publications-research/research/research-resources/loss-reserving-data-pulled-naic-schedule-p).
