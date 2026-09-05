@@ -20,3 +20,11 @@ wkcomp_pos_98-07.csv
 # OS
 .DS_Store
 Thumbs.db
+
+# Local build artifacts and R console history
+/outputs/
+.Rapp.history
+
+# Legacy root-level plots are preserved locally, but are not build outputs
+/ibnr_by_accident_year.png
+/cl_vs_bf_reserves.png

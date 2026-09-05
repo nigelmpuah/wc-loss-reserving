@@ -1,0 +1,291 @@
+---
+title: "Workers' Compensation Loss Reserving"
+author: "Nigel Mpuah"
+date: "Valuation: December 31, 2007"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+    number_sections: false
+    keep_tex: false
+fontsize: 11pt
+geometry: margin=0.75in
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{float}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \fancyfoot[L]{\small Nigel Mpuah | Workers' Compensation Loss Reserving}
+  - \fancyfoot[R]{\small\thepage}
+  - \renewcommand{\headrulewidth}{0pt}
+---
+
+```{r setup-report, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      fig.align = "center", out.width = "100%")
+options(knitr.kable.NA = "")
+```
+
+## Results and scope
+
+The manual and package chain-ladder calculations both estimate
+**$`r millions(cl_total)` million** of unpaid losses through development age 10.
+The original reserve discrepancy is fully reconciled. The two BF calculations
+below show how the result changes when the expected loss ratio (ELR) changes.
+Neither ELR is an independent prior.
+
+```{r report-headline, results='asis'}
+view <- headline
+names(view) <- c("Calculation", "Unpaid (USD millions)")
+view[[2]] <- millions(view[[2]])
+knitr::kable(view, format = "latex", booktabs = TRUE, align = c("l", "r"))
+```
+
+Mack's standard error is **$`r millions(mack_se)` million**, with a coefficient
+of variation of **`r percent(mack_cv)`**. These apply to the common-basis estimate
+above. They are conditional on the model and exclude development beyond age 10.
+
+### The book and valuation
+
+The source is the CAS Schedule P workers' compensation dataset. Code 388 is
+labelled **Federal Ins Co Grp**, with `Single = 0`, identifying an insurer group.
+The actual file has `r nrow(co)` records for this group, covering accident years
+`r min(reserve_tbl$acc_year)`-`r max(reserve_tbl$acc_year)` and ten development lags.
+Accident year 2007 is absent for this group; no row was invented to fill it.
+
+Only observations with accident year + development lag - 1 at or before 2007
+enter the fitted triangle. There are `r data_audit$observed_cells` such observations;
+`r data_audit$excluded_future_cells` later observations are excluded. This is a
+historical portfolio study, not a current reserve recommendation.
+
+### What the estimates mean
+
+The paid-loss measure includes allocated expenses and is net of reinsurance.
+Net earned premium is used for the ELR calculations. All source monetary values
+are interpreted as USD thousands; report and chart totals use USD millions.
+The estimates cover future payments on reported and unreported claims. This is
+**unpaid losses**, not solely incurred-but-not-reported claims. The package's
+`IBNR` output field is used as an unpaid-loss quantity in this paid triangle.
+
+“Ultimate” in the calculation means projected cumulative paid at age 10.
+No later development is assumed. It does not establish that all claims are settled.
+
+\newpage
+
+## Why the original reserves differed
+
+The manual calculation used development ages 1-10. The old Mack input used
+ages 1-9, dropping the sole observed age-10 payment. This changed both the
+projection horizon and the latest paid amount for accident year 1998.
+
+```{r reconciliation-summary, results='asis'}
+view <- basis_table
+view[-1] <- lapply(view[-1], millions)
+names(view) <- c("Basis", "Latest paid", "Projected paid", "Unpaid")
+knitr::kable(view, format = "latex", booktabs = TRUE, align = "lrrr")
+```
+
+All amounts above are USD millions. The reduction in projected paid losses was
+$`r millions(ultimate_gap)` million, partly offset by a $`r millions(paid_gap)` million
+reduction in latest paid. Since unpaid = projected paid - latest paid, the net
+difference is **$`r millions(reserve_gap)` million**, or
+**`r percent(reserve_gap / cl_total)`** of the manual estimate. It was not immaterial.
+
+### The final observed development factor
+
+The age-9-to-10 factor is `r fmt(tail(ldfs$ldf_vw, 1), 9)`, based only on the 1998
+pair: `r fmt(tri_mat['1998','10'], 0)` / `r fmt(tri_mat['1998','9'], 0)` in USD thousands.
+Dropping it removes a roughly `r percent(tail(ldfs$ldf_vw,1)-1)` multiplier from the
+age-9 projected totals. Its impact accumulates across accident years.
+
+```{r reconciliation-years, results='asis'}
+view <- reconciliation
+view[-1] <- lapply(view[-1], millions)
+names(view) <- c("Accident year", "Latest paid change", "Projected change", "Unpaid change")
+knitr::kable(view, format = "latex", booktabs = TRUE, align = "rrrr")
+```
+
+Changes are full-horizon minus original trimmed estimates, in USD millions.
+
+### Common-basis comparison
+
+The installed ChainLadder version is `r as.character(packageVersion('ChainLadder'))`.
+Its standard Mack input supports at least as many origin rows as development
+columns; a square shape is not universally required. The original 9-by-10 input
+is rejected directly. The documentation also describes other rectangular cases.
+
+For this book, using ages **2-10** gives a standard 9-by-9 triangle. Every origin
+has already reached age 2, so the unused age-1-to-2 factor is omitted while all
+latest payments and needed factors are retained. Volume weighting (`alpha = 1`),
+accident years, and the no-tail assumption are unchanged. Manual and package
+latest paid, projected paid and unpaid losses agree by origin within
+`1e-7` in USD thousands. No unexplained reserve difference remains.
+
+\newpage
+
+## Bornhuetter-Ferguson sensitivities
+
+For paid-loss development, the BF estimate is:
+
+\[
+\text{Unpaid}_i = \text{Premium}_i \times \text{ELR} \times (1 - 1/\text{CDF}_i).
+\]
+
+The original ELR uses observed paid losses divided by net earned premium for
+years with CDF below 1.05. Those years are
+**`r paste(mature$acc_year, collapse = ', ')`**, not just 1998-1999. This gives
+**`r percent(elr, 6)`**. A low CDF does not prove settlement or make this an
+external expectation.
+
+The second scenario uses total CL projected losses divided by total net earned
+premium: **`r percent(cl_implied_elr, 6)`**. It is labelled **CL-implied ELR sensitivity**.
+The computation uses full precision; 40.0% was a rounded display label.
+
+```{r bf-scenarios-table, results='asis'}
+view <- data.frame(Scenario = c("Mature-year paid ELR", "CL-implied ELR", "Exactly 40% (rounding check)"),
+                   ELR = percent(bf_scenarios$ELR, 6),
+                   Unpaid = millions(bf_scenarios$unpaid_000s))
+names(view)[3] <- "Unpaid (USD millions)"
+knitr::kable(view, format = "latex", booktabs = TRUE, align = "lrr")
+```
+
+```{r sensitivity-chart, out.width='100%'}
+knitr::include_graphics(normalizePath("figures/cl_vs_bf_sensitivity.png"), rel_path = FALSE)
+```
+
+**Interpretation.** The difference follows from the ELR inputs applied to the
+same premiums and unpaid proportions. The CL-implied scenario reuses CL results,
+so its proximity to CL is not independent validation. Neither scenario is
+labelled “correct,” “conservative,” or a preferred reserve based only on proximity.
+
+\newpage
+
+## Uncertainty on the common basis
+
+```{r uncertainty-chart, out.width='100%'}
+knitr::include_graphics(normalizePath("figures/unpaid_by_accident_year.png"), rel_path = FALSE)
+```
+
+```{r year-results, results='asis'}
+view <- by_year[c("Accident_year", "Age", "CDF", "Unpaid_000s", "Mack_SE_000s")]
+view$CDF <- fmt(view$CDF, 3)
+view$Unpaid_000s <- millions(view$Unpaid_000s)
+view$Mack_SE_000s <- millions(view$Mack_SE_000s)
+names(view) <- c("Accident year", "Latest age", "CDF", "Unpaid (millions)", "SE (millions)")
+knitr::kable(view, format = "latex", booktabs = TRUE, align = "rrrrr")
+```
+
+Mack standard errors estimate prediction uncertainty under chain-ladder
+conditional mean and variance assumptions and independence between accident
+years. They include process and parameter risk within the selected model.
+The total SE includes dependence from shared factor estimates; it is not the
+sum of the per-year SEs. The plotted one-SE bands are not confidence intervals.
+
+The final development factor has only one observed pair, so the final variance
+uses the package's `est.sigma = "Mack"` approximation. Arithmetic agreement does
+not establish the model assumptions. The old roughly 16% CV described the
+trimmed-age-9 calculation; it cannot be attached to the age-10 reserve. The
+common-basis CV is `r percent(mack_cv)`.
+
+\newpage
+
+## Data checks and limits
+
+```{r audit-table, results='asis'}
+knitr::kable(audit_summary, format = "latex", booktabs = TRUE, align = "lr")
+```
+
+The code checks required numeric fields and finite values, integer years and
+lags, unique company/year/lag keys, expected observed cells through the valuation
+date, and numeric column ordering. Each accident year's premium must agree
+across development lags. Direct and assumed premium less ceded premium must
+equal net earned premium. Non-positive paired development denominators stop
+the analysis for investigation instead of causing observations to be dropped.
+
+### The 2001 paid-loss decrease
+
+Cumulative paid for accident year 2001 decreases from
+$`r millions(tri_mat['2001','6'])` million at age 6 to
+$`r millions(tri_mat['2001','7'])` million at age 7: a
+**$`r millions(abs(data_audit$negative_increments$increment[1]))` million decrease**.
+The original “smooth development” description was unsupported.
+
+The supplied file matches the official CAS download byte for byte, and the
+decrease is present in the official records. The CSV does not explain its cause
+or provide transaction details to resolve it. It is retained in the factors and
+flagged in every run. No recovery, correction or other economic explanation is
+asserted without evidence. Resolving the cause would require underlying filings
+or clarification from the data provider.
+
+### Limits of the analysis
+
+- **Tail:** projected paid at age 10 is treated as ultimate. The dataset does not
+  establish that payments beyond this horizon are zero. The Mack SE excludes
+  uncertainty about omitted later development.
+- **Model:** stability of development and independence across origin years have
+  not been established by the synthetic tests. Calendar effects, business mix,
+  reinsurance changes and other model misspecification are not quantified here.
+- **ELRs:** both BF scenarios use this book's own experience. Neither supplies
+  independent evidence about expected losses.
+- **Coverage:** the selected group's 2007 accident year is not present. The
+  supplied posted-reserve field is not used as a benchmark because its coverage
+  is not established as matching this paid-loss projection.
+- **Validation:** later observations exist, but no runoff backtest is implemented.
+  No predictive validation, credibility ranking or reserve recommendation is claimed.
+
+\newpage
+
+## Reproduction and sources
+
+From the repository root, run:
+
+```sh
+Rscript build.R
+```
+
+The RStudio Console equivalent is `source("build.R")`. It launches a fresh R
+process, restores the recorded package environment, runs `r test_groups` synthetic
+test groups, and generates the CSV tables, three figures, README and this PDF.
+Both document sources read the same objects generated by the current analysis.
+No headline result is maintained separately by hand.
+
+### Environment and files
+
+The recorded R version is `r getRversion()`. ChainLadder is
+`r as.character(packageVersion('ChainLadder'))`; renv is
+`r as.character(packageVersion('renv'))`. The lockfile records package versions
+and sources. Pandoc and a LaTeX distribution are external prerequisites;
+renv does not install or pin their complete system environments. Local build
+versions and session details are saved under `outputs/`.
+
+The editable sources are `report/report.Rmd` and `report/README.Rmd`. The shared
+calculation functions are in `R/reserving.R`; the main analysis is
+`wc_loss_reserving.R`. Tests use synthetic data and can run without the CAS CSV.
+Tables and detailed input checks are regenerated under `outputs/tables/`, which
+is kept local. Only the intended report, charts, source and environment files
+are prepared for repository review.
+
+### Data acquisition
+
+Download `wkcomp_pos_98-07.csv` from the CAS page's current workers' compensation
+link and place it at the repository root. The earlier 2011 release is a different
+file and schema. Read the usage terms and attribution requirements. The source
+CSV is not redistributed. The build checks its SHA-256 against the reference
+release so a changed input cannot silently reuse the report's scope statements.
+
+Reference SHA-256:
+
+```{r checksum, results='asis'}
+cat(paste0("\\begin{small}\\begin{verbatim}\n", substr(input_sha256,1,32), "\n", substr(input_sha256,33,64), "\n\\end{verbatim}\\end{small}\n"))
+```
+
+### Sources
+
+1. [CAS loss-reserving data and field descriptions](https://www.casact.org/publications-research/research/research-resources/loss-reserving-data-pulled-naic-schedule-p).
+   Data accessed from this CAS page as compiled for CAS by S&P Global Market
+   Intelligence. Official and local CSV equality checked September 4, 2026.
+2. [Official workers' compensation CSV](https://www.casact.org/sites/default/files/2026-03/wkcomp_pos_98-07.csv).
+3. [CAS terms of use](https://www.casact.org/terms-use).
+4. [ChainLadder: MackChainLadder documentation](https://mages.github.io/ChainLadder/reference/MackChainLadder.html).
+   Supported shapes, weighting, standard errors and tail settings.
+5. [renv: restoring a project environment](https://rstudio.github.io/renv/reference/restore.html).
