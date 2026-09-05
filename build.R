@@ -21,6 +21,8 @@ build_project <- function() {
   if (!rmarkdown::pandoc_available()) stop("Pandoc is required; install RStudio or Pandoc.")
   if (!nzchar(Sys.which("pdflatex")))
     stop("A LaTeX distribution with pdflatex is required. See DATA_AND_BUILD.md.")
+  # Fix PDF metadata timestamps so the same inputs produce the same PDF bytes.
+  Sys.setenv(SOURCE_DATE_EPOCH = "1199059200")
   if (!file.exists("wkcomp_pos_98-07.csv"))
     stop("Missing CAS CSV. Follow DATA_AND_BUILD.md; the dataset is not bundled.")
   input_sha256 <- digest::digest(file = "wkcomp_pos_98-07.csv", algo = "sha256")
