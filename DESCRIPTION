@@ -1,0 +1,8 @@
+Package: wcLossReservingPortfolio
+Title: Workers Compensation Loss Reserving Portfolio Analysis
+Version: 0.1.0
+Description: Reproducible paid-loss chain-ladder and BF sensitivities.
+Authors@R: person("Nigel", "Mpuah", role = c("aut", "cre"))
+Depends: R (>= 4.5.2)
+Imports: ChainLadder, dplyr, tidyr, tibble, readr, ggplot2, scales,
+    rmarkdown, knitr, digest, renv
