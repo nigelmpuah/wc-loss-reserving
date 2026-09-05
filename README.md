@@ -44,7 +44,7 @@ $471.488M. This is a sensitivity, not an independent
 prior or independent validation. The original mature-year paid ELR uses
 **1998, 1999, 2000**, selected by `CDF < 1.05`.
 
-## Reproduce everything
+## Reproduction
 
 Install **R 4.5.2**, Pandoc (included with RStudio), and a LaTeX
 distribution. Download the CSV as described in [DATA_AND_BUILD.md](DATA_AND_BUILD.md).
